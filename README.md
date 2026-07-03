@@ -2,6 +2,23 @@
 
 Internal testing package for drawing operating zones on Google Maps and exporting them as GeoJSON/KML.
 
+## Open the web app
+
+Use this link:
+
+https://lsjlwj5371.github.io/groundk-zone-builder/
+
+Paste the Google Maps API key into the top input field, then click `지도 로드`.
+
+If the map does not load, check the Google Cloud API key settings:
+
+- Allowed referrer must include:
+  - `https://lsjlwj5371.github.io/groundk-zone-builder/*`
+- Allowed APIs must include:
+  - `Maps JavaScript API`
+  - `Places API`
+- Billing must be enabled for the Google Cloud project.
+
 ## Files
 
 - `index.html` - Google Maps Zone Builder
@@ -32,6 +49,8 @@ Do not commit the real key back to GitHub.
 Restrict the API key in Google Cloud Console:
 
 - Application restriction: HTTP referrers
+- GitHub Pages referrer:
+  - `https://lsjlwj5371.github.io/groundk-zone-builder/*`
 - Local test referrers:
   - `http://127.0.0.1:*/*`
   - `http://localhost:*/*`

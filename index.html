@@ -18,6 +18,8 @@ button{cursor:pointer}
 .top h1{margin:0;font-size:23px}
 .top p{margin:7px 0 0;color:#c8d7e9}
 .bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fff;border-bottom:1px solid var(--line);padding:12px 28px;position:sticky;top:0;z-index:10}
+.deploy-note{background:#fff7ed;border-bottom:1px solid #fed7aa;color:#7c2d12;padding:10px 28px;line-height:1.55;font-size:13px}
+.deploy-note b{color:#9a3412}
 .btn{border:1px solid var(--line);background:#fff;color:var(--navy);border-radius:8px;padding:9px 12px;font-weight:800}
 .btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
 .btn.danger{color:var(--bad)}
@@ -69,6 +71,11 @@ textarea{width:100%;min-height:210px;border:1px solid var(--line);border-radius:
   <h1>Google Maps Zone Builder</h1>
   <p>실제 Google 지도에서 장소를 검색하거나 지도를 클릭해 Zone 꼭짓점을 만들고, GeoJSON/KML로 내보내는 내부 운영용 MVP입니다.</p>
 </header>
+<div class="deploy-note">
+  <b>GitHub Pages 테스트 링크입니다.</b>
+  상단 입력칸에 Google Maps API key를 붙여넣고 <b>지도 로드</b>를 누르세요.
+  지도가 안 뜨면 Google Cloud referrer에 <b>https://lsjlwj5371.github.io/groundk-zone-builder/*</b>가 허용되어 있는지 확인하세요.
+</div>
 <nav class="bar">
   <input id="apiKeyInput" class="field api-key" type="password" placeholder="Google Maps API key">
   <button class="btn primary" id="loadMapBtn">지도 로드</button>
@@ -227,7 +234,7 @@ function loadGoogleMaps(){
   if (!key) {
     $("mapStatus").textContent = "API key 필요";
     $("validationResult").className = "notice bad";
-    $("validationResult").textContent = "Google Maps API key를 입력해야 지도를 로드할 수 있습니다.";
+    $("validationResult").innerHTML = "Google Maps API key를 상단 입력칸에 붙여넣어야 지도를 로드할 수 있습니다.<br>GitHub Pages에서는 보안상 key를 repo 파일에 넣지 않았습니다.";
     return;
   }
   localStorage.setItem(API_KEY_KEY, key);
@@ -236,7 +243,7 @@ function loadGoogleMaps(){
     if (!googleLoaded) {
       $("mapStatus").textContent = "지도 로드 지연";
       $("validationResult").className = "notice bad";
-      $("validationResult").innerHTML = "Google Maps 로드가 지연되고 있습니다. API key, 결제 활성화, 허용 API, referrer 제한을 확인하세요.<br>file://로 열었다면 로컬 서버(http://127.0.0.1)로 다시 여는 것이 안전합니다.";
+      $("validationResult").innerHTML = "Google Maps 로드가 지연되고 있습니다.<br>확인할 것: API key 입력 여부, Google Cloud 결제 활성화, Maps JavaScript API/Places API 활성화, referrer 제한.<br>GitHub Pages referrer: https://lsjlwj5371.github.io/groundk-zone-builder/*";
     }
   }, 9000);
   window.initGoogleZoneBuilder = () => { googleLoaded = true; initMap(); };
@@ -248,7 +255,7 @@ function loadGoogleMaps(){
     clearTimeout(window.groundkMapLoadTimer);
     $("mapStatus").textContent = "지도 로드 실패";
     $("validationResult").className = "notice bad";
-    $("validationResult").textContent = "Google Maps 스크립트를 로드하지 못했습니다. API key, referrer 제한, 활성화된 API를 확인하세요.";
+    $("validationResult").innerHTML = "Google Maps 스크립트를 로드하지 못했습니다.<br>Google Cloud에서 이 referrer를 허용했는지 확인하세요: https://lsjlwj5371.github.io/groundk-zone-builder/*";
   };
   document.head.appendChild(script);
 }
