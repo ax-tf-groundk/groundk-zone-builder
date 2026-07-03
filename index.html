@@ -1,0 +1,665 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GroundK Google Maps Zone Builder v1.0</title>
+<style>
+:root{
+  --navy:#071d3a;--blue:#0a4d8f;--ink:#10223f;--muted:#667a94;--line:#d9e2ef;
+  --soft:#f4f7fb;--panel:#ffffff;--good:#12715b;--warn:#b36b00;--bad:#b42318;
+  --blue-soft:#eef6ff;--warn-soft:#fff7ed;--bad-soft:#fff5f5;--good-soft:#ecfdf5;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--soft);color:var(--ink);font-family:Arial,"Segoe UI",sans-serif;font-size:14px}
+button,input,select,textarea{font:inherit}
+button{cursor:pointer}
+.top{background:var(--navy);color:#fff;padding:20px 28px}
+.top h1{margin:0;font-size:23px}
+.top p{margin:7px 0 0;color:#c8d7e9}
+.bar{display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fff;border-bottom:1px solid var(--line);padding:12px 28px;position:sticky;top:0;z-index:10}
+.btn{border:1px solid var(--line);background:#fff;color:var(--navy);border-radius:8px;padding:9px 12px;font-weight:800}
+.btn.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+.btn.danger{color:var(--bad)}
+.btn.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.field{border:1px solid var(--line);border-radius:8px;padding:9px 10px;background:#fff;min-height:39px}
+.api-key{width:min(420px,100%)}
+#placeSearchWrap{min-height:42px}
+#placeSearchWrap gmp-place-autocomplete{width:100%;display:block}
+.wrap{display:grid;grid-template-columns:360px minmax(0,1fr);gap:16px;padding:18px 28px 42px}
+.panel{background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.panel-h{background:#f8fbff;border-bottom:1px solid var(--line);padding:12px 14px}
+.panel-h h2{margin:0;font-size:16px;color:var(--navy)}
+.panel-h small{display:block;margin-top:3px;color:var(--muted);line-height:1.45}
+.panel-b{padding:13px 14px}
+.stack{display:grid;gap:12px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.map-shell{min-height:720px;display:grid;grid-template-rows:auto 1fr}
+.map-tools{display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;border-bottom:1px solid var(--line);padding:11px 12px;background:#fff}
+#map{min-height:650px;height:100%;background:#edf2f7}
+.empty-map{display:grid;place-items:center;min-height:650px;background:#fbfdff;color:var(--muted);text-align:center;padding:28px}
+.notice{border-left:4px solid var(--blue);background:var(--blue-soft);padding:10px 11px;border-radius:6px;line-height:1.55}
+.notice.warn{border-left-color:var(--warn);background:var(--warn-soft);color:#614200}
+.notice.bad{border-left-color:var(--bad);background:var(--bad-soft);color:#7a1712}
+.notice.good{border-left-color:var(--good);background:var(--good-soft);color:#0f513d}
+label.small{display:block;color:var(--muted);font-size:12px;font-weight:800;margin:0 0 5px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row > *{min-width:0}
+.grow{flex:1}
+.list{display:grid;gap:8px}
+.zone-row{display:grid;grid-template-columns:18px 1fr auto;gap:8px;align-items:center;border:1px solid var(--line);border-radius:8px;padding:8px;background:#fff}
+.zone-row.active{border-color:var(--blue);background:var(--blue-soft)}
+.zone-row b{color:var(--navy)}
+.zone-row small{color:var(--muted)}
+.dot{width:10px;height:10px;border-radius:3px;display:inline-block}
+textarea{width:100%;min-height:210px;border:1px solid var(--line);border-radius:8px;padding:10px;font-family:Consolas,monospace;font-size:12px;resize:vertical}
+.coord-list{max-height:190px;overflow:auto;border:1px solid var(--line);border-radius:8px;background:#fbfdff}
+.coord{display:grid;grid-template-columns:28px 1fr;gap:8px;padding:7px 8px;border-bottom:1px solid #e8eef6;font-family:Consolas,monospace;font-size:12px}
+.coord:last-child{border-bottom:0}
+.pill{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:5px 8px;background:#fff;font-weight:800;font-size:12px;color:var(--navy)}
+.mode{display:flex;gap:6px;flex-wrap:wrap}
+.status{color:var(--muted);font-size:12px}
+.hidden{display:none!important}
+@media(max-width:1040px){.wrap{grid-template-columns:1fr}.bar{position:static}.map-shell,#map,.empty-map{min-height:560px}}
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Google Maps Zone Builder</h1>
+  <p>실제 Google 지도에서 장소를 검색하거나 지도를 클릭해 Zone 꼭짓점을 만들고, GeoJSON/KML로 내보내는 내부 운영용 MVP입니다.</p>
+</header>
+<nav class="bar">
+  <input id="apiKeyInput" class="field api-key" type="password" placeholder="Google Maps API key">
+  <button class="btn primary" id="loadMapBtn">지도 로드</button>
+  <button class="btn" id="forgetKeyBtn">키 삭제</button>
+  <span class="pill">Maps JavaScript API</span>
+  <span class="pill">Places Autocomplete</span>
+  <span class="pill">No Drawing Library</span>
+</nav>
+<main class="wrap">
+  <aside class="stack">
+    <section class="panel">
+      <div class="panel-h"><h2>프로젝트</h2><small>저장 전까지 데이터는 이 브라우저의 localStorage에만 보관됩니다.</small></div>
+      <div class="panel-b stack">
+        <div>
+          <label class="small" for="vendorName">협력사</label>
+          <input id="vendorName" class="field" value="Sample Vendor" style="width:100%">
+        </div>
+        <div class="grid2">
+          <div>
+            <label class="small" for="countryName">국가</label>
+            <input id="countryName" class="field" value="Thailand" style="width:100%">
+          </div>
+          <div>
+            <label class="small" for="cityName">도시</label>
+            <input id="cityName" class="field" value="Bangkok" style="width:100%">
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn" id="saveLocalBtn">로컬 저장</button>
+          <button class="btn" id="loadLocalBtn">불러오기</button>
+          <button class="btn danger" id="resetAllBtn">초기화</button>
+        </div>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="panel-h"><h2>검색 및 꼭짓점 추가</h2><small>검색 결과를 추가하거나, 지도 클릭 모드에서 직접 점을 찍습니다.</small></div>
+      <div class="panel-b stack">
+        <div>
+          <label class="small" for="placeSearchWrap">장소 검색</label>
+          <div id="placeSearchWrap"><input id="placeSearch" class="field" placeholder="공항, 호텔, 지역명 검색" style="width:100%" disabled></div>
+        </div>
+        <div id="searchResult" class="notice">지도 로드 후 장소를 검색할 수 있습니다.</div>
+        <div class="mode">
+          <button class="btn on" id="modeAddBtn">지도 클릭 추가</button>
+          <button class="btn" id="modePanBtn">이동/보기</button>
+        </div>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="panel-h"><h2>현재 Zone 작성</h2><small>3개 이상 꼭짓점이 있어야 Polygon으로 확정할 수 있습니다.</small></div>
+      <div class="panel-b stack">
+        <div class="grid2">
+          <div>
+            <label class="small" for="zoneName">Zone 이름</label>
+            <input id="zoneName" class="field" value="Zone 1" style="width:100%">
+          </div>
+          <div>
+            <label class="small" for="zoneColor">색상</label>
+            <input id="zoneColor" class="field" type="color" value="#0a4d8f" style="width:100%;height:39px;padding:3px">
+          </div>
+        </div>
+        <div class="row">
+          <button class="btn" id="undoVertexBtn">마지막 점 삭제</button>
+          <button class="btn danger" id="clearDraftBtn">작성 중 삭제</button>
+          <button class="btn primary" id="saveZoneBtn">Zone 확정</button>
+        </div>
+        <div id="draftStatus" class="notice">아직 꼭짓점이 없습니다.</div>
+        <div id="coordList" class="coord-list"></div>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="panel-h"><h2>Zone 목록</h2><small>확정된 Zone은 지도에서 직접 꼭짓점을 드래그해 수정할 수 있습니다.</small></div>
+      <div class="panel-b stack">
+        <div id="zoneList" class="list"></div>
+        <button class="btn" id="validateBtn">검증 실행</button>
+        <div id="validationResult" class="notice">검증 전입니다.</div>
+      </div>
+    </section>
+    <section class="panel">
+      <div class="panel-h"><h2>내보내기</h2><small>실서비스 적재는 GeoJSON을 기본값으로 권장합니다.</small></div>
+      <div class="panel-b stack">
+        <div class="row">
+          <button class="btn" id="exportGeoJsonBtn">GeoJSON</button>
+          <button class="btn" id="exportKmlBtn">KML</button>
+          <button class="btn" id="downloadBtn">파일 다운로드</button>
+        </div>
+        <textarea id="exportText" readonly placeholder="Export 결과가 여기에 표시됩니다."></textarea>
+      </div>
+    </section>
+  </aside>
+  <section class="panel map-shell">
+    <div class="map-tools">
+      <div class="row">
+        <span class="pill" id="mapStatus">지도 미로드</span>
+        <span class="status" id="cursorStatus">lat, lng: -</span>
+      </div>
+      <div class="row">
+        <button class="btn" id="fitBoundsBtn">전체 보기</button>
+        <button class="btn" id="sampleBtn">샘플 로드</button>
+      </div>
+    </div>
+    <div id="mapEmpty" class="empty-map">Google Maps API key를 입력하고 지도를 로드하세요.<br>배포 시에는 API key에 도메인 referrer 제한과 예산 알림을 걸어야 합니다.</div>
+    <div id="map" class="hidden"></div>
+  </section>
+</main>
+<script src="zone_google_maps_builder_config.js"></script>
+<script>
+window.GROUNDK_GOOGLE_MAPS_API_KEY = window.GROUNDK_GOOGLE_MAPS_API_KEY || "";
+
+const STORE_KEY = "groundk.googleZoneBuilder.v1";
+const API_KEY_KEY = "groundk.googleMapsApiKey";
+const colors = ["#0A4D8F","#12715B","#B36B00","#7C3AED","#B42318","#0284C7","#64748B","#BE185D","#4D7C0F"];
+let map, autocomplete, googleLoaded = false, clickMode = "add";
+let draftVertices = [], draftMarkers = [], draftLine = null, selectedPlace = null;
+let zones = [], activeZoneId = null;
+
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));
+const round = n => Math.round(n * 1000000) / 1000000;
+const latLngObj = ll => ({lat: typeof ll.lat === "function" ? ll.lat() : ll.lat, lng: typeof ll.lng === "function" ? ll.lng() : ll.lng});
+
+function boot(){
+  const params = new URLSearchParams(location.search);
+  const key = window.GROUNDK_GOOGLE_MAPS_API_KEY || params.get("key") || localStorage.getItem(API_KEY_KEY) || "";
+  $("apiKeyInput").value = key;
+  bindUi();
+  if (location.protocol === "file:") {
+    $("validationResult").className = "notice warn";
+    $("validationResult").innerHTML = "이 파일을 file://로 직접 열면 Google Maps API referrer 제한 때문에 지도가 반응하지 않을 수 있습니다.<br>함께 제공된 start_zone_google_maps_builder.bat로 실행하거나, 로컬 서버 주소(http://127.0.0.1:8793/...)로 열어주세요.";
+  }
+  renderAll();
+}
+
+function bindUi(){
+  $("loadMapBtn").onclick = loadGoogleMaps;
+  $("forgetKeyBtn").onclick = () => { localStorage.removeItem(API_KEY_KEY); $("apiKeyInput").value = ""; };
+  $("modeAddBtn").onclick = () => setMode("add");
+  $("modePanBtn").onclick = () => setMode("pan");
+  $("undoVertexBtn").onclick = undoVertex;
+  $("clearDraftBtn").onclick = clearDraft;
+  $("saveZoneBtn").onclick = saveDraftAsZone;
+  $("validateBtn").onclick = () => renderValidation(validateZones());
+  $("exportGeoJsonBtn").onclick = () => $("exportText").value = JSON.stringify(buildGeoJson(), null, 2);
+  $("exportKmlBtn").onclick = () => $("exportText").value = buildKml();
+  $("downloadBtn").onclick = downloadExport;
+  $("saveLocalBtn").onclick = saveLocal;
+  $("loadLocalBtn").onclick = loadLocal;
+  $("resetAllBtn").onclick = resetAll;
+  $("fitBoundsBtn").onclick = fitAll;
+  $("sampleBtn").onclick = loadSample;
+}
+
+function loadGoogleMaps(){
+  if (googleLoaded) return initMap();
+  const key = $("apiKeyInput").value.trim();
+  if (!key) {
+    $("mapStatus").textContent = "API key 필요";
+    $("validationResult").className = "notice bad";
+    $("validationResult").textContent = "Google Maps API key를 입력해야 지도를 로드할 수 있습니다.";
+    return;
+  }
+  localStorage.setItem(API_KEY_KEY, key);
+  $("mapStatus").textContent = "지도 로딩 중";
+  window.groundkMapLoadTimer = setTimeout(() => {
+    if (!googleLoaded) {
+      $("mapStatus").textContent = "지도 로드 지연";
+      $("validationResult").className = "notice bad";
+      $("validationResult").innerHTML = "Google Maps 로드가 지연되고 있습니다. API key, 결제 활성화, 허용 API, referrer 제한을 확인하세요.<br>file://로 열었다면 로컬 서버(http://127.0.0.1)로 다시 여는 것이 안전합니다.";
+    }
+  }, 9000);
+  window.initGoogleZoneBuilder = () => { googleLoaded = true; initMap(); };
+  const script = document.createElement("script");
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&v=weekly&loading=async&callback=initGoogleZoneBuilder`;
+  script.async = true;
+  script.defer = true;
+  script.onerror = () => {
+    clearTimeout(window.groundkMapLoadTimer);
+    $("mapStatus").textContent = "지도 로드 실패";
+    $("validationResult").className = "notice bad";
+    $("validationResult").textContent = "Google Maps 스크립트를 로드하지 못했습니다. API key, referrer 제한, 활성화된 API를 확인하세요.";
+  };
+  document.head.appendChild(script);
+}
+
+async function initMap(){
+  clearTimeout(window.groundkMapLoadTimer);
+  $("mapEmpty").classList.add("hidden");
+  $("map").classList.remove("hidden");
+  const { Map } = await google.maps.importLibrary("maps");
+  const { PlaceAutocompleteElement } = await google.maps.importLibrary("places");
+  map = new Map($("map"), {
+    center: { lat: 13.7563, lng: 100.5018 },
+    zoom: 11,
+    mapTypeControl: true,
+    streetViewControl: false,
+    fullscreenControl: true,
+  });
+  const searchWrap = $("placeSearchWrap");
+  searchWrap.innerHTML = "";
+  autocomplete = new PlaceAutocompleteElement();
+  autocomplete.placeholder = "공항, 호텔, 지역명 검색";
+  searchWrap.appendChild(autocomplete);
+  autocomplete.addEventListener("gmp-select", async ({ placePrediction }) => {
+    const place = placePrediction.toPlace();
+    await place.fetchFields({ fields: ["displayName", "formattedAddress", "location", "viewport"] });
+    onPlaceSelected(place);
+  });
+  map.addListener("click", e => {
+    if (clickMode !== "add") return;
+    addVertex(latLngObj(e.latLng), "Map click");
+  });
+  map.addListener("mousemove", e => {
+    const p = latLngObj(e.latLng);
+    $("cursorStatus").textContent = `lat, lng: ${round(p.lat)}, ${round(p.lng)}`;
+  });
+  $("mapStatus").textContent = "지도 로드됨";
+  redrawZones();
+  redrawDraft();
+}
+
+function onPlaceSelected(place){
+  if (!place?.location) return;
+  const point = latLngObj(place.location);
+  selectedPlace = { point, name: place.displayName || "", address: place.formattedAddress || "" };
+  if (place.viewport) map.fitBounds(place.viewport);
+  else {
+    map.panTo(point);
+    map.setZoom(Math.max(map.getZoom(), 14));
+  }
+  $("searchResult").className = "notice good";
+  $("searchResult").innerHTML = `<b>${esc(selectedPlace.name || "Selected place")}</b><br>${esc(selectedPlace.address)}<br><button class="btn primary" id="addSearchPointBtn" style="margin-top:8px">이 위치를 꼭짓점으로 추가</button>`;
+  setTimeout(() => {
+    const btn = $("addSearchPointBtn");
+    if (btn) btn.onclick = () => addVertex(point, selectedPlace.name || "Place search");
+  }, 0);
+}
+
+function setMode(next){
+  clickMode = next;
+  $("modeAddBtn").classList.toggle("on", next === "add");
+  $("modePanBtn").classList.toggle("on", next === "pan");
+  if (map) map.setOptions({ draggableCursor: next === "add" ? "crosshair" : null });
+}
+
+function addVertex(point, source){
+  draftVertices.push({ lat: point.lat, lng: point.lng, source });
+  if (map) {
+    const marker = new google.maps.Marker({
+      map,
+      position: point,
+      label: String(draftVertices.length),
+      draggable: true,
+      title: `${draftVertices.length}. ${source}`,
+    });
+    const idx = draftMarkers.length;
+    marker.addListener("dragend", e => {
+      draftVertices[idx] = { ...draftVertices[idx], ...latLngObj(e.latLng) };
+      redrawDraftLine();
+      renderDraft();
+    });
+    draftMarkers.push(marker);
+    redrawDraftLine();
+  }
+  renderDraft();
+}
+
+function redrawDraft(){
+  clearDraftGraphics();
+  draftVertices.forEach((v, idx) => {
+    if (!map) return;
+    const marker = new google.maps.Marker({
+      map,
+      position: { lat: v.lat, lng: v.lng },
+      label: String(idx + 1),
+      draggable: true,
+      title: `${idx + 1}. ${v.source || "Vertex"}`,
+    });
+    marker.addListener("dragend", e => {
+      draftVertices[idx] = { ...draftVertices[idx], ...latLngObj(e.latLng) };
+      redrawDraftLine();
+      renderDraft();
+    });
+    draftMarkers.push(marker);
+  });
+  redrawDraftLine();
+}
+
+function redrawDraftLine(){
+  if (draftLine) draftLine.setMap(null);
+  if (!map || draftVertices.length < 2) return;
+  draftLine = new google.maps.Polyline({
+    map,
+    path: draftVertices.map(v => ({ lat: v.lat, lng: v.lng })),
+    strokeColor: $("zoneColor").value || "#0a4d8f",
+    strokeWeight: 3,
+    strokeOpacity: 0.85,
+  });
+}
+
+function clearDraftGraphics(){
+  draftMarkers.forEach(m => m.setMap(null));
+  draftMarkers = [];
+  if (draftLine) draftLine.setMap(null);
+  draftLine = null;
+}
+
+function undoVertex(){
+  draftVertices.pop();
+  redrawDraft();
+  renderDraft();
+}
+
+function clearDraft(){
+  draftVertices = [];
+  clearDraftGraphics();
+  renderDraft();
+}
+
+function saveDraftAsZone(){
+  const name = $("zoneName").value.trim();
+  if (!name) return showDraftWarning("Zone 이름을 입력하세요.");
+  if (draftVertices.length < 3) return showDraftWarning("Zone 확정에는 최소 3개 꼭짓점이 필요합니다.");
+  const zone = {
+    id: `zone_${Date.now()}`,
+    name,
+    color: $("zoneColor").value || colors[zones.length % colors.length],
+    vertices: draftVertices.map(v => ({ lat: round(v.lat), lng: round(v.lng) })),
+  };
+  zones.push(zone);
+  activeZoneId = zone.id;
+  clearDraft();
+  $("zoneName").value = nextZoneName();
+  $("zoneColor").value = colors[zones.length % colors.length];
+  redrawZones();
+  renderAll();
+}
+
+function showDraftWarning(message){
+  $("draftStatus").className = "notice bad";
+  $("draftStatus").textContent = message;
+}
+
+function createPolygon(zone){
+  const polygon = new google.maps.Polygon({
+    map,
+    paths: zone.vertices.map(v => ({ lat: v.lat, lng: v.lng })),
+    strokeColor: zone.color,
+    strokeOpacity: 0.95,
+    strokeWeight: 3,
+    fillColor: zone.color,
+    fillOpacity: 0.18,
+    editable: true,
+    draggable: true,
+    geodesic: true,
+  });
+  polygon.addListener("click", () => {
+    activeZoneId = zone.id;
+    renderZones();
+  });
+  polygon.addListener("dragend", () => syncPolygonPath(zone, polygon));
+  const path = polygon.getPath();
+  ["set_at", "insert_at", "remove_at"].forEach(evt => {
+    google.maps.event.addListener(path, evt, () => syncPolygonPath(zone, polygon));
+  });
+  zone.polygon = polygon;
+}
+
+function syncPolygonPath(zone, polygon){
+  zone.vertices = polygon.getPath().getArray().map(latLngObj).map(v => ({ lat: round(v.lat), lng: round(v.lng) }));
+  renderAll();
+}
+
+function redrawZones(){
+  zones.forEach(z => { if (z.polygon) z.polygon.setMap(null); z.polygon = null; });
+  if (!map) return;
+  zones.forEach(createPolygon);
+  renderZones();
+}
+
+function renderAll(){
+  renderDraft();
+  renderZones();
+  renderValidation(validateZones(false));
+}
+
+function renderDraft(){
+  $("coordList").innerHTML = draftVertices.map((v,i)=>`<div class="coord"><b>${i+1}</b><span>${round(v.lat)}, ${round(v.lng)}</span></div>`).join("") || `<div class="coord"><b>-</b><span>꼭짓점 없음</span></div>`;
+  $("draftStatus").className = draftVertices.length >= 3 ? "notice good" : "notice";
+  $("draftStatus").textContent = draftVertices.length >= 3 ? `${draftVertices.length}개 꼭짓점. Zone 확정 가능.` : `${draftVertices.length}개 꼭짓점. 최소 3개 필요.`;
+}
+
+function renderZones(){
+  $("zoneList").innerHTML = zones.map((z, idx) => `
+    <div class="zone-row ${activeZoneId === z.id ? "active" : ""}">
+      <span class="dot" style="background:${z.color}"></span>
+      <div><b>${esc(z.name)}</b><br><small>${z.vertices.length} vertices</small></div>
+      <button class="btn danger" data-delete-zone="${z.id}">삭제</button>
+    </div>
+  `).join("") || `<div class="notice">확정된 Zone이 없습니다.</div>`;
+  document.querySelectorAll("[data-delete-zone]").forEach(btn => {
+    btn.onclick = () => deleteZone(btn.dataset.deleteZone);
+  });
+}
+
+function deleteZone(id){
+  const zone = zones.find(z => z.id === id);
+  if (zone?.polygon) zone.polygon.setMap(null);
+  zones = zones.filter(z => z.id !== id);
+  if (activeZoneId === id) activeZoneId = null;
+  renderAll();
+}
+
+function nextZoneName(){
+  const used = new Set(zones.map(z => z.name));
+  for (let i = 1; i < 100; i++) {
+    const name = `Zone ${i}`;
+    if (!used.has(name)) return name;
+  }
+  return `Zone ${zones.length + 1}`;
+}
+
+function validateZones(showEmpty = true){
+  const issues = [];
+  if (!zones.length && showEmpty) issues.push({ level:"warn", text:"확정된 Zone이 없습니다." });
+  zones.forEach(z => {
+    if (!/^Zone\s+\d+(\s+\(Airport\))?$/i.test(z.name)) issues.push({ level:"warn", text:`${z.name}: Zone 1, Zone 2 형식이 아닙니다.` });
+    if (z.vertices.length < 3) issues.push({ level:"bad", text:`${z.name}: 꼭짓점이 3개 미만입니다.` });
+    if (hasSelfIntersection(z.vertices)) issues.push({ level:"bad", text:`${z.name}: 자기교차 가능성이 있습니다.` });
+  });
+  for (let i=0;i<zones.length;i++){
+    for (let j=i+1;j<zones.length;j++){
+      if (polygonsOverlap(zones[i].vertices, zones[j].vertices)) {
+        issues.push({ level:"warn", text:`${zones[i].name}와 ${zones[j].name}가 겹치거나 경계를 공유합니다.` });
+      }
+    }
+  }
+  return issues;
+}
+
+function renderValidation(issues){
+  const el = $("validationResult");
+  if (!issues.length) {
+    el.className = "notice good";
+    el.innerHTML = zones.length ? "검증 통과: 현재 감지된 오류가 없습니다." : "Zone을 만들면 검증 결과가 표시됩니다.";
+    return;
+  }
+  el.className = issues.some(i=>i.level==="bad") ? "notice bad" : "notice warn";
+  el.innerHTML = issues.map(i=>`<div>${esc(i.text)}</div>`).join("");
+}
+
+function orientation(a,b,c){return Math.sign((b.lat-a.lat)*(c.lng-b.lng)-(b.lng-a.lng)*(c.lat-b.lat))}
+function onSegment(a,b,c){return Math.min(a.lng,c.lng)<=b.lng&&b.lng<=Math.max(a.lng,c.lng)&&Math.min(a.lat,c.lat)<=b.lat&&b.lat<=Math.max(a.lat,c.lat)}
+function segmentsIntersect(p1,q1,p2,q2){
+  const o1=orientation(p1,q1,p2),o2=orientation(p1,q1,q2),o3=orientation(p2,q2,p1),o4=orientation(p2,q2,q1);
+  if(o1!==o2&&o3!==o4)return true;
+  if(o1===0&&onSegment(p1,p2,q1))return true;
+  if(o2===0&&onSegment(p1,q2,q1))return true;
+  if(o3===0&&onSegment(p2,p1,q2))return true;
+  if(o4===0&&onSegment(p2,q1,q2))return true;
+  return false;
+}
+function hasSelfIntersection(ring){
+  for(let i=0;i<ring.length;i++){
+    const a1=ring[i], a2=ring[(i+1)%ring.length];
+    for(let j=i+1;j<ring.length;j++){
+      if(Math.abs(i-j)<=1 || (i===0&&j===ring.length-1)) continue;
+      const b1=ring[j], b2=ring[(j+1)%ring.length];
+      if(segmentsIntersect(a1,a2,b1,b2)) return true;
+    }
+  }
+  return false;
+}
+function pointInRing(point, ring){
+  let inside=false;
+  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+    const xi=ring[i].lng, yi=ring[i].lat, xj=ring[j].lng, yj=ring[j].lat;
+    const intersect=((yi>point.lat)!==(yj>point.lat))&&(point.lng<(xj-xi)*(point.lat-yi)/(yj-yi)+xi);
+    if(intersect) inside=!inside;
+  }
+  return inside;
+}
+function polygonsOverlap(a,b){
+  if (a.some(p=>pointInRing(p,b)) || b.some(p=>pointInRing(p,a))) return true;
+  for(let i=0;i<a.length;i++)for(let j=0;j<b.length;j++){
+    if(segmentsIntersect(a[i],a[(i+1)%a.length],b[j],b[(j+1)%b.length])) return true;
+  }
+  return false;
+}
+
+function buildGeoJson(){
+  return {
+    type: "FeatureCollection",
+    properties: projectMeta(),
+    features: zones.map(z => ({
+      type: "Feature",
+      properties: { zone: z.name, color: z.color },
+      geometry: {
+        type: "Polygon",
+        coordinates: [[...z.vertices.map(v => [v.lng, v.lat]), [z.vertices[0].lng, z.vertices[0].lat]]],
+      },
+    })),
+  };
+}
+
+function buildKml(){
+  const features = zones.map(z => {
+    const coords = [...z.vertices, z.vertices[0]].map(v => `${v.lng},${v.lat},0`).join(" ");
+    return `  <Placemark>
+    <name>${xmlEsc(z.name)}</name>
+    <Polygon><outerBoundaryIs><LinearRing><coordinates>${coords}</coordinates></LinearRing></outerBoundaryIs></Polygon>
+  </Placemark>`;
+  }).join("\n");
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+<Document>
+  <name>${xmlEsc(projectMeta().vendor || "GroundK Zone Set")}</name>
+${features}
+</Document>
+</kml>`;
+}
+
+function xmlEsc(s){return String(s??"").replace(/[<>&'"]/g,m=>({"<":"&lt;",">":"&gt;","&":"&amp;","'":"&apos;",'"':"&quot;"}[m]))}
+function projectMeta(){return { vendor:$("vendorName").value.trim(), country:$("countryName").value.trim(), city:$("cityName").value.trim(), generatedAt:new Date().toISOString() }}
+
+function downloadExport(){
+  let text = $("exportText").value;
+  if (!text) {
+    $("exportText").value = JSON.stringify(buildGeoJson(), null, 2);
+    text = $("exportText").value;
+  }
+  const isKml = text.trim().startsWith("<?xml");
+  const blob = new Blob([text], { type: isKml ? "application/vnd.google-earth.kml+xml" : "application/geo+json" });
+  const a = document.createElement("a");
+  const slug = `${$("countryName").value || "country"}_${$("cityName").value || "city"}`.replace(/[^a-z0-9가-힣]+/gi,"_");
+  a.href = URL.createObjectURL(blob);
+  a.download = `groundk_zones_${slug}.${isKml ? "kml" : "geojson"}`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function saveLocal(){
+  localStorage.setItem(STORE_KEY, JSON.stringify({ meta: projectMeta(), zones: zones.map(cleanZone) }));
+  $("validationResult").className = "notice good";
+  $("validationResult").textContent = "로컬 저장 완료.";
+}
+
+function loadLocal(){
+  const raw = localStorage.getItem(STORE_KEY);
+  if (!raw) return;
+  const data = JSON.parse(raw);
+  $("vendorName").value = data.meta?.vendor || "";
+  $("countryName").value = data.meta?.country || "";
+  $("cityName").value = data.meta?.city || "";
+  zones.forEach(z => z.polygon?.setMap(null));
+  zones = (data.zones || []).map((z,i)=>({ ...z, color:z.color || colors[i%colors.length] }));
+  redrawZones();
+  renderAll();
+  fitAll();
+}
+
+function cleanZone(z){return { id:z.id, name:z.name, color:z.color, vertices:z.vertices }}
+function resetAll(){
+  zones.forEach(z => z.polygon?.setMap(null));
+  zones = [];
+  clearDraft();
+  renderAll();
+}
+
+function fitAll(){
+  if (!map) return;
+  const bounds = new google.maps.LatLngBounds();
+  let count = 0;
+  zones.forEach(z => z.vertices.forEach(v => { bounds.extend(v); count++; }));
+  draftVertices.forEach(v => { bounds.extend(v); count++; });
+  if (count) map.fitBounds(bounds);
+}
+
+function loadSample(){
+  const sample = [
+    {name:"Zone 0 (Airport)", color:"#0A4D8F", vertices:[{lat:13.675,lng:100.704},{lat:13.675,lng:100.805},{lat:13.745,lng:100.805},{lat:13.745,lng:100.704}]},
+    {name:"Zone 1", color:"#12715B", vertices:[{lat:13.700,lng:100.485},{lat:13.700,lng:100.595},{lat:13.790,lng:100.610},{lat:13.815,lng:100.500}]},
+    {name:"Zone 2", color:"#B36B00", vertices:[{lat:13.715,lng:100.600},{lat:13.710,lng:100.690},{lat:13.795,lng:100.695},{lat:13.825,lng:100.620}]},
+  ];
+  zones.forEach(z => z.polygon?.setMap(null));
+  zones = sample.map((z,i)=>({ id:`sample_${i}_${Date.now()}`, ...z }));
+  redrawZones();
+  renderAll();
+  fitAll();
+}
+
+boot();
+</script>
+</body>
+</html>
